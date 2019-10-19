@@ -1,3 +1,14 @@
 <resources>
     <string name="app_name">DailyExpanse</string>
+
+    <string-array name="catagory">
+        <item>Select expense type</item>
+        <item>Electricity Bill</item>
+        <item>Lunch</item>
+        <item>Transport Cost</item>
+        <item>Breakfast</item>
+        <item>Dinner</item>
+        <item>Net Bill</item>
+    </string-array>
+
 </resources>
