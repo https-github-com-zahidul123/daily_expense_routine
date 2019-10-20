@@ -1,6 +1,9 @@
 <resources>
     <string name="app_name">DailyExpanse</string>
 
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+
+    <!-- TODO: Remove or change this placeholder text -->
     <string-array name="catagory">
         <item>Select expense type</item>
         <item>Electricity Bill</item>

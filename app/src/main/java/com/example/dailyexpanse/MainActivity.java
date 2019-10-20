@@ -1,16 +1,23 @@
 package com.example.dailyexpanse;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.FileProvider;
 
+import android.Manifest;
 import android.app.AlertDialog;
 import android.app.DatePickerDialog;
 import android.app.TimePickerDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.provider.MediaStore;
 import android.view.View;
 import android.widget.AdapterView;
@@ -23,10 +30,14 @@ import android.widget.Spinner;
 import android.widget.TimePicker;
 import android.widget.Toast;
 
+import com.example.dailyexpanse.All_sub_class.Show_total_expense;
+import com.example.dailyexpanse.Db_modelClass.Dbhelper;
+
+import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
+import java.text.SimpleDateFormat;
 import java.util.Calendar;
-import java.util.List;
+import java.util.Date;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -38,13 +49,15 @@ public class MainActivity extends AppCompatActivity {
     String nmselecteditm;
     String expanseammount,expansedate,expansetime;
     String imageurl;
-
+    String currentPhotoPath;
+    Dbhelper dbhelper;
+    private static final int MY_CAMERA_PERMISSION_CODE = 100;
     public static final int PICK_IMAGE = 1,CAMERA_REQUEST=2;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
+        dbhelper=new Dbhelper(this);
         init();
         addinSpinner();
       otherfielddata();
@@ -55,6 +68,20 @@ public class MainActivity extends AppCompatActivity {
           }
       });
 
+      addexpenseBtn.setOnClickListener(new View.OnClickListener() {
+          @Override
+          public void onClick(View view) {
+           long result= dbhelper.insertData(expanseammount,expansedate,expansetime,imageurl);
+           if (result==-1){
+               Toast.makeText(MainActivity.this,"sorry to insert",Toast.LENGTH_LONG).show();
+           }else {
+               Intent intent=new Intent(MainActivity.this, Show_total_expense.class);
+               intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_CLEAR_TASK);
+               startActivity(intent);
+           }
+
+          }
+      });
 
     }
 
@@ -66,6 +93,7 @@ public class MainActivity extends AppCompatActivity {
                 "Capture photo from camera" };
         pictureDialog.setItems(pictureDialogItems,
                 new DialogInterface.OnClickListener() {
+                    @RequiresApi(api = Build.VERSION_CODES.M)
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         switch (which) {
@@ -81,12 +109,77 @@ public class MainActivity extends AppCompatActivity {
         pictureDialog.show();
 
     }
-private void takePhotoFromCamera(){
 
-    Intent cameraIntent = new Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE);
-    startActivityForResult(cameraIntent, CAMERA_REQUEST);
-    
+@RequiresApi(api = Build.VERSION_CODES.M)
+private void takePhotoFromCamera(){
+    if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED)
+    {
+        requestPermissions(new String[]{Manifest.permission.CAMERA}, MY_CAMERA_PERMISSION_CODE);
+    }else{
+
+       // Intent cameraIntent = new Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE);
+        //startActivityForResult(cameraIntent, CAMERA_REQUEST);
+
+        Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        // Ensure that there's a camera activity to handle the intent
+        if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
+            // Create the File where the photo should go
+            File photoFile = null;
+            try {
+                photoFile = createImageFile();
+            } catch (IOException ex) {
+                // Error occurred while creating the File
+
+            }
+            // Continue only if the File was successfully created
+            if (photoFile != null) {
+                Uri photoURI = FileProvider.getUriForFile(this,
+                        "com.example.android.fileprovider",
+                        photoFile);
+                takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoURI);
+                startActivityForResult(takePictureIntent, CAMERA_REQUEST);
+            }
+        }
+    }
+
+
 }
+
+    private File createImageFile() throws IOException {
+        // Create an image file name
+        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        String imageFileName = "JPEG_" + timeStamp + "_";
+        File storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
+        File image = File.createTempFile(
+                imageFileName,  /* prefix */
+                ".jpg",         /* suffix */
+                storageDir      /* directory */
+        );
+
+        // Save a file: path for use with ACTION_VIEW intents
+        currentPhotoPath = image.getAbsolutePath();
+        return image;
+    }
+
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults)
+    {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == MY_CAMERA_PERMISSION_CODE)
+        {
+            if (grantResults[0] == PackageManager.PERMISSION_GRANTED)
+            {
+                Toast.makeText(this, "camera permission granted", Toast.LENGTH_LONG).show();
+                Intent cameraIntent = new Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE);
+                startActivityForResult(cameraIntent, CAMERA_REQUEST);
+            }
+            else
+            {
+                Toast.makeText(this, "camera permission denied", Toast.LENGTH_LONG).show();
+            }
+        }
+    }
 
 
     private void choosePhotoFromGallary() {
@@ -95,6 +188,7 @@ private void takePhotoFromCamera(){
         intent.setAction(Intent.ACTION_GET_CONTENT);
         startActivityForResult(Intent.createChooser(intent, "Select Picture"), PICK_IMAGE);
     }
+
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
@@ -112,21 +206,18 @@ private void takePhotoFromCamera(){
             Toast.makeText(MainActivity.this,imageurl,Toast.LENGTH_LONG).show();
         }
         if (requestCode==CAMERA_REQUEST){
-            Uri uri=data.getData();
-            imageurl=uri.toString();
-            try {
-                Bitmap bitmap = MediaStore.Images.Media.getBitmap(getContentResolver(), uri);
-                documentimageView.setImageBitmap(bitmap);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+
+            imageurl=currentPhotoPath;
+           // Bitmap photo = (Bitmap) data.getExtras().get("data");
+           // documentimageView.setImageBitmap(photo);
+
+            documentimageView.setImageURI(Uri.parse(imageurl));
             Toast.makeText(MainActivity.this,imageurl,Toast.LENGTH_LONG).show();
         }
     }
 
     private void otherfielddata() {
         expanseammount=expenseamountET.getText().toString().trim();
-
         expensetimeET.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
