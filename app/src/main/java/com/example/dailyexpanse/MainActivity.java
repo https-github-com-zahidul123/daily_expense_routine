@@ -53,6 +53,8 @@ public class MainActivity extends AppCompatActivity {
     Dbhelper dbhelper;
     private static final int MY_CAMERA_PERMISSION_CODE = 100;
     public static final int PICK_IMAGE = 1,CAMERA_REQUEST=2;
+    int resultup=1;
+    String uid;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -60,7 +62,13 @@ public class MainActivity extends AppCompatActivity {
         dbhelper=new Dbhelper(this);
         init();
         addinSpinner();
-      otherfielddata();
+        otherfielddata();
+         uid=getIntent().getStringExtra("EXPENSE_ID");
+        resultup=getIntent().getIntExtra("result",1);
+
+        if (resultup==100){
+            addexpenseBtn.setText("Update File");
+        }
       adddocumentBtn.setOnClickListener(new View.OnClickListener() {
           @Override
           public void onClick(View view) {
@@ -71,14 +79,35 @@ public class MainActivity extends AppCompatActivity {
       addexpenseBtn.setOnClickListener(new View.OnClickListener() {
           @Override
           public void onClick(View view) {
-           long result= dbhelper.insertData(expanseammount,expansedate,expansetime,imageurl);
-           if (result==-1){
-               Toast.makeText(MainActivity.this,"sorry to insert",Toast.LENGTH_LONG).show();
-           }else {
-               Intent intent=new Intent(MainActivity.this, Show_total_expense.class);
-               intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_CLEAR_TASK);
-               startActivity(intent);
-           }
+              if (resultup==1){
+                  addexpenseBtn.setText("Update File");
+                  long result= dbhelper.insertData(expenseamountET.getText().toString(),expensedateET.getText().toString(),
+                          expensetimeET.getText().toString(),imageurl,nmselecteditm);
+                  if (result==-1){
+                      Toast.makeText(MainActivity.this,"sorry to insert",Toast.LENGTH_LONG).show();
+                  }else {
+                      addexpenseBtn.setText("Update File");
+                      Intent intent=new Intent(MainActivity.this, Show_total_expense.class);
+                      intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                      startActivity(intent);
+
+                  }
+              }else if (resultup==100){
+                  boolean result= dbhelper.updatedata(expanseammount,expansedate,expansetime,uid);
+                  if (!result){
+                      resultup=1;
+                      addexpenseBtn.setText("Add expense");
+                      Toast.makeText(MainActivity.this,"sorry to update",Toast.LENGTH_LONG).show();
+                  }else {
+
+                      resultup=1;
+                      addexpenseBtn.setText("Add expense");
+                      Intent intent=new Intent(MainActivity.this, Show_total_expense.class);
+                      intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                      startActivity(intent);
+                  }
+              }
+
 
           }
       });
@@ -86,6 +115,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void imageordocument() {
+
+
         AlertDialog.Builder pictureDialog = new AlertDialog.Builder(this);
         pictureDialog.setTitle("please select your option");
         String[] pictureDialogItems = {
